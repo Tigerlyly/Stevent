@@ -7,7 +7,10 @@ This project is still mostly conceptual, a lot of work needs to be done
 * On a new linux (Debian/Ubuntu) system, or WSL on windows
   * Look over `setup/shared-vars.sh` to see the directories that will be involved
   * Clone the git and run `setup/prepare-system.sh` to install necessary packages and fetch the minecraft server jar
+  * Update node.js to v12 LTS with `setup/install-node.sh`
   * Use `start-server.sh` and `stop-server.sh` in `setup` to run a local minecraft server for testing
+  * `npm update` to install dependencies
+  * With the server running, run `node main.js` to start the bot.
 
 ## Goals
 * Some possible end goals
@@ -17,6 +20,7 @@ This project is still mostly conceptual, a lot of work needs to be done
   * Collect wood and make wooden tools
   * Collect stone and make stone tools
   * Collect iron and make iron tools
+  * Collect diamonds and don't fall into the lava
 
 
 

@@ -4,7 +4,7 @@ SCRIPT_LOC="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 
 sudo apt update || error "Unable to apt update ($?)"
-sudo apt install -y wget tmux nodejs npm openjdk-8-jdk || error "Unable to apt install packages ($?)"
+sudo apt install -y wget tmux openjdk-8-jdk || error "Unable to apt install packages ($?)"
 
 mkdir -p ${DEPLOY_LOC} || error "Unable to create dir '${DEPLOY_LOC}' ($?)"
 # Download server jar if not already present
