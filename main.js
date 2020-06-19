@@ -55,9 +55,36 @@ bot.on('chat', (username, message) => {
 
   const mcData = require('minecraft-data')(bot.version)
 
+  if(message.startsWith("test")) {
+    //console.log(Object.keys(mcData.blocksByName))
+    // mcData.blocksArray.forEach((block) => {
+    //   console.log(block)
+    // })
+    console.log(mcData.blocksArray.filter((block) => {
+      return block.name.includes("log") && !block.name.includes("stripped")
+    }))
+  }
+
+  if(message.startsWith('look')) {
+    const dir = message.split(' ')[1]
+
+    lookDirection(bot, dir, () => {
+      bot.chat("Looking in " + dir)
+    });
+  }
+
   if (message.startsWith('find')) {
     const name = message.split(' ')[1]
-    const ids = [34,35,36,37,38,39]
+    JSON.parse(mcData.blocksByName).forEach((block) => {
+      console.log(block.name)
+    })
+    // console.log(mcData.blocksByName.filter((block) => {
+    //   block.name.includes("log") && !block.name.includes("stripped")
+    // }))
+    
+    // const ids = mcData.findItemOrBlockByName("log").filter((block) => {
+    //   block.name.substring(0, 5) !== "strip"
+    // })
 
     let blocks = bot.findBlocks({ matching: ids, maxDistance: 128, minCount: 10 })
     console.log(blocks)
@@ -79,7 +106,7 @@ bot.on('chat', (username, message) => {
 })
 
 bot.on("move", () => {
-  console.log(bot.entity.position)
+  //console.log(bot.entity.position)
   if(botDest) {
     console.log(distanceFrom(bot.entity.position, botDest))
     if(distanceFrom(bot.entity.position, botDest) < 8) {
@@ -107,4 +134,39 @@ function distanceFrom(v1, v2) {
   zCoord = v1.z-v2.z
   dist = Math.sqrt(Math.pow(xCoord,2) + Math.pow(yCoord,2) + Math.pow(zCoord,2))
   return dist
+}
+
+/** Directional look function **/
+function lookDirection(botVar, direction, cb = null) {
+  yaw = 0;
+  switch(direction.toLowerCase()) {
+    case 'north':
+      yaw = 0;
+      break;
+    case 'west':
+      yaw = Math.PI / 2;
+      break;
+    case 'south':
+      yaw = Math.PI;
+      break;
+    case 'east':
+      yaw = -(Math.PI / 2);
+      break;
+    case 'northwest':
+      yaw = Math.PI / 4;
+      break;
+    case 'southwest':
+      yaw = Math.PI * 3 / 4;
+      break;
+    case 'southeast':
+      yaw = -(Math.PI * 3 / 4);
+      break;
+    case 'northeast':
+      yaw = -(Math.PI * 1 / 4);
+      break;
+    default:
+      console.log("Direction is not supported");
+      return;
+  }
+  botVar.look(yaw, 0, false, cb)
 }
