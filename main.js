@@ -7,7 +7,7 @@ let bot = mineflayer.createBot({
   version: false                 // false corresponds to auto version detection (that's the default), put for example "1.8.8" if you need a specific version
 });
 
-let botDest;
+let botDest = null;
 
 bot.on('chat', function(username, message) {
   if (username === bot.username) return;
@@ -56,28 +56,23 @@ bot.on('chat', (username, message) => {
   const mcData = require('minecraft-data')(bot.version)
 
   if(message.startsWith("test")) {
-    //console.log(Object.keys(mcData.blocksByName))
-    // mcData.blocksArray.forEach((block) => {
-    //   console.log(block)
-    // })
-    console.log(mcData.blocksArray.filter((block) => {
-      return block.name.includes("log") && !block.name.includes("stripped")
-    }))
+    console.log(bot.entity.yaw)
+    bot.chat("I am now looking " + getLookDirection(bot))
   }
 
   if(message.startsWith('look')) {
     const dir = message.split(' ')[1]
 
     lookDirection(bot, dir, () => {
-      bot.chat("Looking in " + dir)
+      bot.chat("Looking " + dir)
     });
   }
 
   if (message.startsWith('find')) {
-    const name = message.split(' ')[1]
-    JSON.parse(mcData.blocksByName).forEach((block) => {
-      console.log(block.name)
-    })
+    // const name = message.split(' ')[1]
+    // JSON.parse(mcData.blocksByName).forEach((block) => {
+    //   console.log(block.name)
+    // })
     // console.log(mcData.blocksByName.filter((block) => {
     //   block.name.includes("log") && !block.name.includes("stripped")
     // }))
@@ -85,6 +80,16 @@ bot.on('chat', (username, message) => {
     // const ids = mcData.findItemOrBlockByName("log").filter((block) => {
     //   block.name.substring(0, 5) !== "strip"
     // })
+
+    const logblocks = mcData.blocksArray.filter((block) => {
+      return block.name.includes("log") && !block.name.includes("stripped")
+    })
+
+    const ids = logblocks.map((block) => {
+      return block.id
+    })
+
+    console.log(ids)
 
     let blocks = bot.findBlocks({ matching: ids, maxDistance: 128, minCount: 10 })
     console.log(blocks)
@@ -107,23 +112,23 @@ bot.on('chat', (username, message) => {
 
 bot.on("move", () => {
   //console.log(bot.entity.position)
-  if(botDest) {
-    console.log(distanceFrom(bot.entity.position, botDest))
-    if(distanceFrom(bot.entity.position, botDest) < 8) {
-      bot.clearControlStates()
-      console.log(distanceFrom(bot.entity.position, botDest))
-      console.log(bot.entity.position)
-    }
-  }
+  // if(botDest) {
+  //   console.log(distanceFrom(bot.entity.position, botDest))
+  //   if(distanceFrom(bot.entity.position, botDest) < 8) {
+  //     bot.clearControlStates()
+  //     console.log(distanceFrom(bot.entity.position, botDest))
+  //     console.log(bot.entity.position)
+  //   }
+  // }
 })
 
 bot.on("spawn", function() {
   botDest = bot.entity.position;
   bot.chat("I am spawned")
-  setTimeout(() => {
-    bot.look(0, -Math.PI/2, true, () => {
-      bot.chat("looking straight down")
-  })}, 1000)
+  // setTimeout(() => {
+  //   bot.look(0, -Math.PI/2, true, () => {
+  //     bot.chat("looking straight down")
+  // })}, 1000)
 })
 
 bot.on('error', err => console.log(err))
@@ -137,6 +142,8 @@ function distanceFrom(v1, v2) {
 }
 
 /** Directional look function **/
+/** Input is a mineflayer bot, a direction in string form, and an optional callback function **/
+/** This forces the bot to look in a certain direction. **/
 function lookDirection(botVar, direction, cb = null) {
   yaw = 0;
   switch(direction.toLowerCase()) {
@@ -169,4 +176,30 @@ function lookDirection(botVar, direction, cb = null) {
       return;
   }
   botVar.look(yaw, 0, false, cb)
+}
+
+/** Function to return the direction that the bot is facing. Returns one of 8 directions (4 cardinal, 4 diagonal) **/
+/** Input is a mineflayer bot **/
+/** Return value is a string of which way the bot is facing if one of 8 main directions, otherwise return string explaining **/
+function getLookDirection(botVar) {
+  switch(botVar.entity.yaw) {
+    case 0:
+      return "north"
+    case Math.PI / 2:
+      return "west"
+    case Math.PI:
+      return "south"
+    case -(Math.PI / 2):
+      return "east"
+    case Math.PI / 4:
+      return "northwest"
+    case Math.PI * 3 / 4:
+      return "northeast"
+    case -(Math.PI * 3 / 4):
+      return "southeast"
+    case -(Math.PI * 1 / 4):
+      return "southwest"
+    default:
+      return "some other direction"
+  }
 }

@@ -4,9 +4,10 @@
   "description": "Steven't",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node main.js",
-    "reset": "setup/reset-server.sh"
+    "start": "nodemon main.js",
+    "reset": "setup/reset-server.sh",
+    "stop": "setup/stop-server.sh",
+    "startserver": "setup/start-server.sh"
   },
   "repository": {
     "type": "git",
@@ -20,5 +21,8 @@
   "homepage": "https://github.com/Tigerlyly/Stevent#readme",
   "dependencies": {
     "mineflayer": "^2.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.4"
   }
 }
