@@ -8,11 +8,35 @@ var bot = mineflayer.createBot({
   version: false                 // false corresponds to auto version detection (that's the default), put for example "1.8.8" if you need a specific version
 });
 
+function logall(chat)
+{
+  bot.chat(chat);
+  console.log(chat);
+}
+
 bot.on('chat', function(username, message) {
   if(message == "move")
   {
     var targetLoc = bot.players[username].entity.position;
     moveTo(targetLoc);
+  }
+  if(message == "move2")
+  {
+    var targetLoc = bot.players[username].entity.position;
+    logall("Starting at " + bot.entity.position + ", moving to " + targetLoc);
+    bot.lookAt(targetLoc, true,  () => {
+      logall("Start");
+      bot.setControlState("forward", true)      
+      setTimeout(() => {
+        bot.clearControlStates()
+        logall("Stop " + bot.entity.position);
+        setTimeout(() => {
+          logall("End " + bot.entity.position);
+          //throw "break"
+        }, 300)
+        
+      }, 255)
+    })
   }
 });
 bot.on('error', err => console.log(err))
