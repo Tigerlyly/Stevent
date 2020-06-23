@@ -1,4 +1,5 @@
-let mineflayer = require('mineflayer');
+let mineflayer = require('mineflayer')
+let vec3 = require("vec3")
 const { instruments, blocks } = require('minecraft-data')("1.15.2")
 let bot = mineflayer.createBot({
   host: "localhost", // optional
@@ -56,8 +57,32 @@ bot.on('chat', (username, message) => {
   const mcData = require('minecraft-data')(bot.version)
 
   if(message.startsWith("test")) {
-    console.log(bot.entity.yaw)
-    bot.chat("I am now looking " + getLookDirection(bot))
+    const dir = message.split(" ")[1]
+    // console.log(bot.entity.yaw)
+    // bot.chat("I am now looking " + getLookDirection(bot))
+    let coordsList = [canMove(bot, "east").coords, canMove(bot, "south").coords, canMove(bot, "north").coords, canMove(bot, "west").coords]
+
+    canMove(bot, dir)
+    console.log(coordsList)
+  }
+
+  if(message === "come") {
+    let starttime = Date.now()
+    let pf = new Pathfinder(bot)
+    let ep = bot.players[username].entity.position.floor()
+    //console.log(ep)
+    let {pl, numBlocksExamined} = pf.aStar(bot.entity.position.floor(), bot.players[username].entity.position.floor())
+    let endtime = Date.now() - starttime
+    if(pl.length > 0)
+    {
+      pl.forEach((el) => {
+        console.log(el.position)
+      })
+    } else {
+      bot.chat("I cannot find a way there")
+    }
+    console.log("Path length: " + pl.length)
+    console.log(numBlocksExamined + " blocks examined in " + endtime + " ms")
   }
 
   if(message.startsWith('look')) {
@@ -90,11 +115,14 @@ bot.on('chat', (username, message) => {
     })
 
     console.log(ids)
-
+    let starttime = Date.now()
     let blocks = bot.findBlocks({ matching: ids, maxDistance: 128, minCount: 10 })
-    console.log(blocks)
+    //console.log(blocks)
+    let finaltime = Date.now() - starttime
 
-    bot.chat(`I found ${blocks.length} blocks in ms`)
+    
+    bot.chat(`I found ${blocks.length} blocks in ${finaltime} ms`)
+    
     console.log(bot.entity.position)
     blocks.forEach((block) => {
       console.log(distanceFrom(bot.entity.position, block))
@@ -123,7 +151,7 @@ bot.on("move", () => {
 })
 
 bot.on("spawn", function() {
-  botDest = bot.entity.position;
+  //botDest = bot.entity.position;
   bot.chat("I am spawned")
   // setTimeout(() => {
   //   bot.look(0, -Math.PI/2, true, () => {
@@ -133,11 +161,14 @@ bot.on("spawn", function() {
 
 bot.on('error', err => console.log(err))
 
+/** Distance function for 3d Vecs **/
+/** Input is 2 vec3 objects that represent points in 3d space **/
+/** Returns the l2 distance between the 2 points **/
 function distanceFrom(v1, v2) {
-  xCoord = v1.x-v2.x
-  yCoord = v1.y-v2.y
-  zCoord = v1.z-v2.z
-  dist = Math.sqrt(Math.pow(xCoord,2) + Math.pow(yCoord,2) + Math.pow(zCoord,2))
+  let xCoord = v1.x-v2.x
+  let yCoord = v1.y-v2.y
+  let zCoord = v1.z-v2.z
+  let dist = Math.sqrt(Math.pow(xCoord,2) + Math.pow(yCoord,2) + Math.pow(zCoord,2))
   return dist
 }
 
@@ -145,7 +176,7 @@ function distanceFrom(v1, v2) {
 /** Input is a mineflayer bot, a direction in string form, and an optional callback function **/
 /** This forces the bot to look in a certain direction. **/
 function lookDirection(botVar, direction, cb = null) {
-  yaw = 0;
+  let yaw = 0;
   switch(direction.toLowerCase()) {
     case 'north':
       yaw = 0;
@@ -201,5 +232,265 @@ function getLookDirection(botVar) {
       return "southwest"
     default:
       return "some other direction"
+  }
+}
+
+/** Function to see if bot can move in a certain direction **/
+/** Input is a mineflayer bot and a direction **/
+/**  **/
+function canMove(botVar, direction) {
+  let pf = new Pathfinder(botVar)
+  let {moveAble, coords} = pf.canMoveDir(botVar.entity.position, direction)
+  return {moveAble, coords}
+  // let jumpAble = false;
+  // let moveAble = false;
+  // let botPos = botVar.entity.position;
+  // let aboveBot = botVar.blockAt(botPos.offset(0,2,0))
+  // switch(direction) {
+  //   case "north":
+  //     //offset to the north  = (0, y, -1)
+  //     block0 = botVar.blockAt(botPos.offset(0,-2,-1))
+  //     block1 = botVar.blockAt(botPos.offset(0,-1,-1))
+  //     block2 = botVar.blockAt(botPos.offset(0,0,-1))
+  //     block3 = botVar.blockAt(botPos.offset(0,1,-1))
+  //     block4 = botVar.blockAt(botPos.offset(0,2,-1))
+  //     console.log(botVar.blockAt(botPos.offset(0,-1,-1)))
+  //     break;
+  //   case "east":
+  //     //offset to the east  = (1, y, 0)
+  //     block0 = botVar.blockAt(botPos.offset(1,-2,0))
+  //     block1 = botVar.blockAt(botPos.offset(1,-1,0))
+  //     block2 = botVar.blockAt(botPos.offset(1,0,0))
+  //     block3 = botVar.blockAt(botPos.offset(1,1,0))
+  //     block4 = botVar.blockAt(botPos.offset(1,2,0))
+  //     console.log(botVar.blockAt(botPos.offset(1,-1,0)))
+  //     break;
+  //   case "south":
+  //     //offset to the south  = (0, y, 1)
+  //     block0 = botVar.blockAt(botPos.offset(0,-2,1))
+  //     block1 = botVar.blockAt(botPos.offset(0,-1,1))
+  //     block2 = botVar.blockAt(botPos.offset(0,0,1))
+  //     block3 = botVar.blockAt(botPos.offset(0,1,1))
+  //     block4 = botVar.blockAt(botPos.offset(0,2,1))
+  //     console.log(botVar.blockAt(botPos.offset(0,-1,1)))
+  //     break;
+  //   case "west":
+  //     //offset to the west  = (-1, y, 0)
+  //     block0 = botVar.blockAt(botPos.offset(-1,-2,0))
+  //     block1 = botVar.blockAt(botPos.offset(-1,-1,0))
+  //     block2 = botVar.blockAt(botPos.offset(-1,0,0))
+  //     block3 = botVar.blockAt(botPos.offset(-1,1,0))
+  //     block4 = botVar.blockAt(botPos.offset(-1,2,0))
+  //     console.log(botVar.blockAt(botPos.offset(-1,-1,0)))
+  //     break;
+  // }
+  
+  // const idsToAvoid = [26,27]
+
+  // if(block1.boundingBox === "block" && block2.boundingBox === "empty" && block3.boundingBox === "empty") {
+  //   if(idsToAvoid.includes(block2.type) || idsToAvoid.includes(block3.type)) {
+  //     console.log(false)
+  //   } else {
+  //     console.log(true)
+  //     moveAble = true;
+  //   }
+  // } else if (block0.boundingBox === "block" && block1.boundingBox === "empty" && block2.boundingBox === "empty") {
+  //   if(idsToAvoid.includes(block1.type) || idsToAvoid.includes(block2.type)) {
+  //     console.log(false)
+  //   } else {
+  //     console.log(true + " down one")
+  //     moveAble = true;
+  //   }
+  // } else if (block2.boundingBox === "block" && block3.boundingBox === "empty" && block4.boundingBox === "empty" && aboveBot.boundingBox === "empty") {
+  //   if(idsToAvoid.includes(block3.type) || idsToAvoid.includes(block4.type)) {
+  //     console.log(false)
+  //   } else {
+  //     console.log(true + " need jump")
+  //     jumpAble = true;
+  //   }
+  // } else {
+  //   console.log(false)
+  // }
+}
+
+class Pathfinder {
+  constructor(botVar) {
+    this.botVar = botVar;
+  }
+
+  canMoveDir(point, direction) {
+    let abovePos = this.botVar.blockAt(point.offset(0,2,0))
+    let block0, block1, block2, block3, block4 = null;
+    switch(direction) {
+      case "north":
+        //offset to the north  = (0, y, -1)
+        block0 = this.botVar.blockAt(point.offset(0,-2,-1))
+        block1 = this.botVar.blockAt(point.offset(0,-1,-1))
+        block2 = this.botVar.blockAt(point.offset(0,0,-1))
+        block3 = this.botVar.blockAt(point.offset(0,1,-1))
+        block4 = this.botVar.blockAt(point.offset(0,2,-1))
+        //console.log(this.botVar.blockAt(point.offset(0,-1,-1)))
+        break;
+      case "east":
+        //offset to the east  = (1, y, 0)
+        block0 = this.botVar.blockAt(point.offset(1,-2,0))
+        block1 = this.botVar.blockAt(point.offset(1,-1,0))
+        block2 = this.botVar.blockAt(point.offset(1,0,0))
+        block3 = this.botVar.blockAt(point.offset(1,1,0))
+        block4 = this.botVar.blockAt(point.offset(1,2,0))
+        //console.log(this.botVar.blockAt(point.offset(1,-1,0)))
+        break;
+      case "south":
+        //offset to the south  = (0, y, 1)
+        block0 = this.botVar.blockAt(point.offset(0,-2,1))
+        block1 = this.botVar.blockAt(point.offset(0,-1,1))
+        block2 = this.botVar.blockAt(point.offset(0,0,1))
+        block3 = this.botVar.blockAt(point.offset(0,1,1))
+        block4 = this.botVar.blockAt(point.offset(0,2,1))
+        //console.log(this.botVar.blockAt(point.offset(0,-1,1)))
+        break;
+      case "west":
+        //offset to the west  = (-1, y, 0)
+        block0 = this.botVar.blockAt(point.offset(-1,-2,0))
+        block1 = this.botVar.blockAt(point.offset(-1,-1,0))
+        block2 = this.botVar.blockAt(point.offset(-1,0,0))
+        block3 = this.botVar.blockAt(point.offset(-1,1,0))
+        block4 = this.botVar.blockAt(point.offset(-1,2,0))
+        //console.log(this.botVar.blockAt(point.offset(-1,-1,0)))
+        break;
+    }
+    
+    const idsToAvoid = [26,27]
+  
+    if(block1.boundingBox === "block" && block2.boundingBox === "empty" && block3.boundingBox === "empty") {
+      if(idsToAvoid.includes(block2.type) || idsToAvoid.includes(block3.type)) {
+        return {moveAble: false, coords: block2.position}
+      } else {
+        return {moveAble: true, coords: block2.position}
+      }
+    } else if (block0.boundingBox === "block" && block1.boundingBox === "empty" && block2.boundingBox === "empty") {
+      if(idsToAvoid.includes(block1.type) || idsToAvoid.includes(block2.type)) {
+        return {moveAble: false, coords: block1.position}
+      } else {
+        return {moveAble: true, coords: block1.position}
+      }
+    } else if (block2.boundingBox === "block" && block3.boundingBox === "empty" && block4.boundingBox === "empty" && abovePos.boundingBox === "empty") {
+      if(idsToAvoid.includes(block3.type) || idsToAvoid.includes(block4.type)) {
+        return {moveAble: false, coords: block3.position}
+      } else {
+        return {moveAble: true, coords: block3.position}
+      }
+    } else {
+      return {moveAble: false, coords: this.botVar.blockAt(point)}
+    }
+  }
+
+  pathToFollow(listOfNodes) {
+    let pathList = []
+    let current = listOfNodes[listOfNodes.length - 1]
+    // console.log(current)
+    // console.log("Parent VVVVVVVV")
+    // console.log(current.parent.parent)
+    // console.log("Parent ^^^^^^")
+    // console.log(listOfNodes.length)
+    while (current.parent !== undefined) {
+      //console.log(current.position)
+      pathList.push(current)
+      current = current.parent
+    }
+    pathList.reverse()
+    return pathList
+  }
+
+  aStar(startpoint, endpoint) {
+    let openList = []
+    let closedList = []
+    let md = startpoint.manhattanDistanceTo(endpoint)
+
+    openList.push(new AStarNode(startpoint, 0, md))
+
+    let pathfound = false
+
+    while(true && openList.length + closedList.length <= md * 10) {
+      let current = null;
+      let currentIndex = 0;
+      if(openList.length > 1) {
+        let fCostList = openList.map((el) => el.f_cost)
+        let lowestFCost = Math.min(...fCostList)
+        let lowestfCostList = openList.filter((el) => el.f_cost === lowestFCost)
+        //console.log(lowestfCostList)
+        if (lowestfCostList.length > 1){
+          let hCostList = lowestfCostList.map((el) => el.h_cost)
+          let lowestHCost = Math.min(...hCostList)
+          let lowestHCostPos = lowestfCostList.find((el) => el.h_cost === lowestHCost).position
+          currentIndex = openList.findIndex((el) => el.position.equals(lowestHCostPos))
+        } else {
+          currentIndex = openList.findIndex((el) => el.f_cost === lowestFCost)
+        }
+      }
+      current = openList.splice(currentIndex, 1)[0]
+      closedList.push(current)
+
+      // console.log(openList)
+      // console.log(closedList)
+      // console.log(current)
+      // console.log(current.position)
+      
+      if(endpoint.equals(current.position)) {
+        pathfound = true
+        break
+      }
+
+      let neighbors = ["north", "east", "south", "west"]
+      for (let i = 0; i < 4; i++) {
+        let {moveAble, coords} = this.canMoveDir(current.position, neighbors[i])
+        //console.log(closedList)
+        if (moveAble === false || closedList.findIndex((el) => el.position.equals(coords)) !== -1) {
+          continue
+        }
+        if (openList.findIndex((el) => el.position.equals(coords)) !== -1) {
+          let node = openList.find((el) => el.position.equals(coords))
+          let newg = current.g_cost + 1
+          let newf = newg + node.h
+          if (newf < node.f_cost) {
+            node.f_cost = newf
+            node.parent = current
+          }
+        } else {
+          openList.push(new AStarNode(coords, current.g_cost+1, endpoint.manhattanDistanceTo(coords), current))
+        }
+      }
+    }
+
+    if (pathfound) {
+      let pl = this.pathToFollow(closedList)
+      let numBlocksExamined = closedList.length + openList.length
+      return {pl, numBlocksExamined}
+    } else {
+      let numBlocksExamined = closedList.length + openList.length
+      console.log("Pathfinding explored too many blocks")
+      return {pl: [], numBlocksExamined}
+    }
+  }
+}
+
+class AStarNode {
+  //f_cost = 0;
+  constructor(position, g_cost = 0, h_cost = 0, parent = "null") {
+    //g is dist from start node
+    //h is dist to end node
+    //f is total
+    this.position = position
+    this.g_cost = g_cost
+    this.h_cost = h_cost
+    this.parent = parent
+    this.f_cost = this.g_cost + this.h_cost;
+  }
+
+  equals(node2) {
+    if(node2.position.equals(this.position)) {
+      return true
+    }
+    return false
   }
 }
