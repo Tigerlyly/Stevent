@@ -8,65 +8,81 @@ let bot = mineflayer.createBot({
   version: false                 // false corresponds to auto version detection (that's the default), put for example "1.8.8" if you need a specific version
 });
 
-let botDest = null;
+// bot.on('chat', function(username, message) {
+//   if (username === bot.username) return;
+//   //bot.chat(message);
+//   //bot.chat(message.substring(0,6))
+//   //console.log(message)
+//   if (message === "!dig") {
+//     if(bot.blockInSight().diggable) {
+//       bot.dig(bot.blockInSight())
+//       //console.log(bot.blockInSight())
+//     } else {
+//       bot.chat("I cannot dig " + bot.blockInSight().displayName)
+//       return
+//     }
+//     bot.on("diggingCompleted", (block) => {
+//       if(bot.blockInSight().diggable) {
+//         bot.dig(bot.blockInSight())
+//       } else {
+//         bot.chat("I cannot dig " + bot.blockInSight().displayName)
+//       }
+//     })
 
-bot.on('chat', function(username, message) {
-  if (username === bot.username) return;
-  //bot.chat(message);
-  //bot.chat(message.substring(0,6))
-  //console.log(message)
-  if (message === "!dig") {
-    if(bot.blockInSight().diggable) {
-      bot.dig(bot.blockInSight())
-      //console.log(bot.blockInSight())
-    } else {
-      bot.chat("I cannot dig " + bot.blockInSight().displayName)
-      return
-    }
-    bot.on("diggingCompleted", (block) => {
-      if(bot.blockInSight().diggable) {
-        bot.dig(bot.blockInSight())
-      } else {
-        bot.chat("I cannot dig " + bot.blockInSight().displayName)
-      }
-    })
-
-    bot.on("chat", (username, message) => {
-      if (username === bot.username) return;
-      if(message === "!stopdig") {
-        try {
-          bot.stopDigging()
-        }
-        catch(e) {
-          bot.chat("I have stopped digging.")
-        }
-      }
-    })
+//     bot.on("chat", (username, message) => {
+//       if (username === bot.username) return;
+//       if(message === "!stopdig") {
+//         try {
+//           bot.stopDigging()
+//         }
+//         catch(e) {
+//           bot.chat("I have stopped digging.")
+//         }
+//       }
+//     })
     
     
-  } else if (message.split(" ")[0] === "!echo") {
-    returnMessage = message.split(" ")
-    returnMessage.shift()
-    bot.chat(returnMessage.join(" "))
-  }
-});
+//   } else if (message.split(" ")[0] === "!echo") {
+//     returnMessage = message.split(" ")
+//     returnMessage.shift()
+//     bot.chat(returnMessage.join(" "))
+//   }
+// });
 
 bot.on('chat', (username, message) => {
   if (username === bot.username) return
 
   const mcData = require('minecraft-data')(bot.version)
 
-  if(message.startsWith("test")) {
-    const dir = message.split(" ")[1]
-    // console.log(bot.entity.yaw)
-    // bot.chat("I am now looking " + getLookDirection(bot))
-    let coordsList = [canMove(bot, "east").coords, canMove(bot, "south").coords, canMove(bot, "north").coords, canMove(bot, "west").coords]
 
-    canMove(bot, dir)
-    console.log(coordsList)
+
+  if(message.startsWith("test")) {
+    console.log(bot.entity.position)
+    bot.setControlState("jump", true)
+    setTimeout(() => {
+      bot.setControlState("jump", false)
+    }, 3000)
   }
 
-  if(message === "come") {
+  // if (message.startsWith("center")) {
+  //   const dir = message.split(" ")[1]
+
+  //   lookDirection(bot, dir, () => {
+  //     bot.setControlState("forward", true)
+  //     console.log("start")
+  //     setTimeout(() => {
+  //       bot.clearControlStates()
+  //       console.log("clear control")
+  //       setTimeout(() => {
+  //         console.log("end")
+  //         throw "break"
+  //       }, 300)
+        
+  //     }, 255)
+  //   })
+  // }
+
+  if (message === "come") {
     let starttime = Date.now()
     let pf = new Pathfinder(bot)
     let ep = bot.players[username].entity.position.floor()
@@ -78,11 +94,18 @@ bot.on('chat', (username, message) => {
       pl.forEach((el) => {
         console.log(el.position)
       })
+      pf.reducePath(pl)
     } else {
       bot.chat("I cannot find a way there")
     }
     console.log("Path length: " + pl.length)
     console.log(numBlocksExamined + " blocks examined in " + endtime + " ms")
+  }
+
+  if (message === "here") {
+    console.log(bot.entity.height)
+    let pf = new Pathfinder(bot)
+    pf.moveTo(bot.players[username].entity.position.floored().offset(0.5, 0, 0.5))
   }
 
   if(message.startsWith('look')) {
@@ -152,6 +175,9 @@ bot.on("move", () => {
 
 bot.on("spawn", function() {
   //botDest = bot.entity.position;
+  // setInterval(() => {
+  //   console.log(bot.entity.position, bot.entity.velocity, bot.entity.position.add(bot.entity.velocity))
+  // }, 50)
   bot.chat("I am spawned")
   // setTimeout(() => {
   //   bot.look(0, -Math.PI/2, true, () => {
@@ -314,8 +340,13 @@ function canMove(botVar, direction) {
 }
 
 class Pathfinder {
+  
   constructor(botVar) {
     this.botVar = botVar;
+    this.botDest = null
+    this.MOVING = false
+    this.SUCCESS_DISTANCE = 0.3
+    this.FAIL_DISTANCE = 0;
   }
 
   canMoveDir(point, direction) {
@@ -382,6 +413,68 @@ class Pathfinder {
       }
     } else {
       return {moveAble: false, coords: this.botVar.blockAt(point)}
+    }
+  }
+
+  moveTo(position, cb = null) {
+    this.botDest = position.clone()
+    this.MOVING = true
+    let startPos =  this.botVar.entity.position
+    let lookAtVal = this.botDest.offset(0, this.botVar.entity.height, 0)
+
+    console.log(`Moving to ${position.toString()} from ${startPos.toString()}`)
+    this.FAIL_DISTANCE = position.distanceTo(startPos) + 15
+
+    this.botVar.lookAt(lookAtVal, true, () => {
+      console.log("Finished looking at")
+      this.botVar.setControlState("forward", true)
+    })
+
+    this.botVar.on("move", () => {
+      if (this.MOVING) {
+        let dist = this.botVar.entity.position.distanceTo(this.botDest)
+        console.log(`Distance = ${dist}`)
+        if (dist < this.SUCCESS_DISTANCE) {
+          this.MOVING = false
+          this.botVar.clearControlStates()
+          console.log("finished moving")
+        } else if (dist > this.FAIL_DISTANCE) {
+          this.MOVING = false
+          this.botVar.clearControlStates()
+          console.log("failed movement, out of range")
+        } else {
+          this.botVar.lookAt(lookAtVal, true, () => {})
+        }
+      }
+    })
+  }
+
+  reducePath(listOfNodes) {
+    let deltaVecs = []
+    for (let i = 1; i < listOfNodes.length; i++) {
+      deltaVecs.push(listOfNodes[i].position.minus(listOfNodes[i-1].position))
+    }
+    console.log("deltaVecs before compression: ")
+    for (let node of deltaVecs) {
+      console.log(node)
+    }
+    for (let i = 0; i < deltaVecs.length; i++) {
+      let tv = deltaVecs[i]
+      let count = 1
+      if (i !== deltaVecs.length-1) {
+        while (deltaVecs[i+1].equals(tv)) {
+          count++
+          deltaVecs.splice(i+1, 1)
+          if (i === deltaVecs.length - 1) {
+            break
+          }
+        }
+      }
+      deltaVecs[i].scale(count)
+    }
+    console.log("deltaVecs after compression : ")
+    for (let node of deltaVecs) {
+      console.log(node)
     }
   }
 
