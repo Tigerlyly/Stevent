@@ -87,7 +87,7 @@ bot.on('chat', (username, message) => {
     let pf = new Pathfinder(bot)
     let ep = bot.players[username].entity.position.floor()
     //console.log(ep)
-    let {pl, numBlocksExamined} = pf.aStar(bot.entity.position.floor(), bot.players[username].entity.position.floor())
+    let {pl, numBlocksExamined} = pf.aStar(bot.entity.position.floor(), ep)
     let endtime = Date.now() - starttime
     if(pl.length > 0)
     {
@@ -100,6 +100,8 @@ bot.on('chat', (username, message) => {
     }
     console.log("Path length: " + pl.length)
     console.log(numBlocksExamined + " blocks examined in " + endtime + " ms")
+
+    pf.pathTo(ep)
   }
 
   if (message === "here") {
@@ -416,6 +418,25 @@ class Pathfinder {
     }
   }
 
+  pathTo(position, cb = null) {
+    let {pl, numBlocksExamined} = this.aStar(bot.entity.position.floor(), position)
+    let reducedVecList = this.reducePath(pl)
+    let reducedPath = [this.botVar.entity.position.floored().offset(.5, 0, .5)]
+    for (let node of reducedVecList) {
+      reducedPath.push(reducedPath[reducedPath.length - 1].plus(node))
+    }
+    console.log("reduced path below")
+    for (let node of reducedPath) {
+      console.log(node)
+    }
+    this.moveTo(reducedPath.shift())
+    bot.on("finishedMove", () => {
+      if (reducedPath.length > 0) {
+        this.moveTo(reducedPath.shift())
+      }
+    })
+  }
+
   moveTo(position, cb = null) {
     this.botDest = position.clone()
     this.MOVING = true
@@ -423,24 +444,33 @@ class Pathfinder {
     let lookAtVal = this.botDest.offset(0, this.botVar.entity.height, 0)
 
     console.log(`Moving to ${position.toString()} from ${startPos.toString()}`)
-    this.FAIL_DISTANCE = position.distanceTo(startPos) + 15
+    this.FAIL_DISTANCE = position.distanceTo(startPos) + 2
 
     this.botVar.lookAt(lookAtVal, true, () => {
       console.log("Finished looking at")
       this.botVar.setControlState("forward", true)
+      if (this.botDest.minus(startPos).y > .5) {
+        this.botVar.setControlState("jump", true)
+      }
     })
 
     this.botVar.on("move", () => {
       if (this.MOVING) {
         let dist = this.botVar.entity.position.distanceTo(this.botDest)
         console.log(`Distance = ${dist}`)
+        if (dist < 0.71) {
+          bot.setControlState("jump", false)
+        }
         if (dist < this.SUCCESS_DISTANCE) {
           this.MOVING = false
           this.botVar.clearControlStates()
+          this.botDest = null;
           console.log("finished moving")
+          this.botVar.emit("finishedMove")
         } else if (dist > this.FAIL_DISTANCE) {
           this.MOVING = false
           this.botVar.clearControlStates()
+          this.botDest = null;
           console.log("failed movement, out of range")
         } else {
           this.botVar.lookAt(lookAtVal, true, () => {})
@@ -476,6 +506,7 @@ class Pathfinder {
     for (let node of deltaVecs) {
       console.log(node)
     }
+    return deltaVecs
   }
 
   pathToFollow(listOfNodes) {
