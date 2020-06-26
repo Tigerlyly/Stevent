@@ -8,6 +8,17 @@ let bot = mineflayer.createBot({
   version: false                 // false corresponds to auto version detection (that's the default), put for example "1.8.8" if you need a specific version
 });
 
+// let bot2 = mineflayer.createBot({
+//   host: "localhost", // optional
+//   port: 25565,       // optional
+//   username: "Stevent2", // email and password are required only for
+//   version: false                 // false corresponds to auto version detection (that's the default), put for example "1.8.8" if you need a specific version
+// })
+
+let botUsernames = []
+botUsernames.push(bot.username)
+// botUsernames.push(bot2.username)
+
 // bot.on('chat', function(username, message) {
 //   if (username === bot.username) return;
 //   //bot.chat(message);
@@ -49,12 +60,39 @@ let bot = mineflayer.createBot({
 //   }
 // });
 
+// bot2.on("chat", (username, message) => {
+//   if (botUsernames.includes(username)) {
+//     return
+//   }
+
+//   if(message === "come2" || message === "comeboth") {
+//     let starttime = Date.now()
+//     let pf = new Pathfinder(bot2)
+//     let ep = bot2.players[username].entity.position.floor()
+//     console.log(ep)
+//     //console.log(ep)
+//     let {pl, numBlocksExamined} = pf.aStar(bot2.entity.position.floor(), ep)
+//     let endtime = Date.now() - starttime
+//     if(pl.length > 0)
+//     {
+//       pl.forEach((el) => {
+//         console.log(el.position)
+//       })
+//       pf.reducePath(pl)
+//     } else {
+//       bot2.chat("I cannot find a way there")
+//     }
+//     console.log("Path length: " + pl.length)
+//     console.log(numBlocksExamined + " blocks examined in " + endtime + " ms")
+
+//     pf.pathTo(ep)
+//   }
+// })
+
 bot.on('chat', (username, message) => {
   if (username === bot.username) return
 
   const mcData = require('minecraft-data')(bot.version)
-
-
 
   if(message.startsWith("test")) {
     console.log(bot.entity.position)
@@ -82,7 +120,7 @@ bot.on('chat', (username, message) => {
   //   })
   // }
 
-  if (message === "come") {
+  if (message === "come" || message === "comeboth") {
     let starttime = Date.now()
     let pf = new Pathfinder(bot)
     let ep = bot.players[username].entity.position.floor()
@@ -270,75 +308,6 @@ function canMove(botVar, direction) {
   let pf = new Pathfinder(botVar)
   let {moveAble, coords} = pf.canMoveDir(botVar.entity.position, direction)
   return {moveAble, coords}
-  // let jumpAble = false;
-  // let moveAble = false;
-  // let botPos = botVar.entity.position;
-  // let aboveBot = botVar.blockAt(botPos.offset(0,2,0))
-  // switch(direction) {
-  //   case "north":
-  //     //offset to the north  = (0, y, -1)
-  //     block0 = botVar.blockAt(botPos.offset(0,-2,-1))
-  //     block1 = botVar.blockAt(botPos.offset(0,-1,-1))
-  //     block2 = botVar.blockAt(botPos.offset(0,0,-1))
-  //     block3 = botVar.blockAt(botPos.offset(0,1,-1))
-  //     block4 = botVar.blockAt(botPos.offset(0,2,-1))
-  //     console.log(botVar.blockAt(botPos.offset(0,-1,-1)))
-  //     break;
-  //   case "east":
-  //     //offset to the east  = (1, y, 0)
-  //     block0 = botVar.blockAt(botPos.offset(1,-2,0))
-  //     block1 = botVar.blockAt(botPos.offset(1,-1,0))
-  //     block2 = botVar.blockAt(botPos.offset(1,0,0))
-  //     block3 = botVar.blockAt(botPos.offset(1,1,0))
-  //     block4 = botVar.blockAt(botPos.offset(1,2,0))
-  //     console.log(botVar.blockAt(botPos.offset(1,-1,0)))
-  //     break;
-  //   case "south":
-  //     //offset to the south  = (0, y, 1)
-  //     block0 = botVar.blockAt(botPos.offset(0,-2,1))
-  //     block1 = botVar.blockAt(botPos.offset(0,-1,1))
-  //     block2 = botVar.blockAt(botPos.offset(0,0,1))
-  //     block3 = botVar.blockAt(botPos.offset(0,1,1))
-  //     block4 = botVar.blockAt(botPos.offset(0,2,1))
-  //     console.log(botVar.blockAt(botPos.offset(0,-1,1)))
-  //     break;
-  //   case "west":
-  //     //offset to the west  = (-1, y, 0)
-  //     block0 = botVar.blockAt(botPos.offset(-1,-2,0))
-  //     block1 = botVar.blockAt(botPos.offset(-1,-1,0))
-  //     block2 = botVar.blockAt(botPos.offset(-1,0,0))
-  //     block3 = botVar.blockAt(botPos.offset(-1,1,0))
-  //     block4 = botVar.blockAt(botPos.offset(-1,2,0))
-  //     console.log(botVar.blockAt(botPos.offset(-1,-1,0)))
-  //     break;
-  // }
-  
-  // const idsToAvoid = [26,27]
-
-  // if(block1.boundingBox === "block" && block2.boundingBox === "empty" && block3.boundingBox === "empty") {
-  //   if(idsToAvoid.includes(block2.type) || idsToAvoid.includes(block3.type)) {
-  //     console.log(false)
-  //   } else {
-  //     console.log(true)
-  //     moveAble = true;
-  //   }
-  // } else if (block0.boundingBox === "block" && block1.boundingBox === "empty" && block2.boundingBox === "empty") {
-  //   if(idsToAvoid.includes(block1.type) || idsToAvoid.includes(block2.type)) {
-  //     console.log(false)
-  //   } else {
-  //     console.log(true + " down one")
-  //     moveAble = true;
-  //   }
-  // } else if (block2.boundingBox === "block" && block3.boundingBox === "empty" && block4.boundingBox === "empty" && aboveBot.boundingBox === "empty") {
-  //   if(idsToAvoid.includes(block3.type) || idsToAvoid.includes(block4.type)) {
-  //     console.log(false)
-  //   } else {
-  //     console.log(true + " need jump")
-  //     jumpAble = true;
-  //   }
-  // } else {
-  //   console.log(false)
-  // }
 }
 
 class Pathfinder {
@@ -419,7 +388,7 @@ class Pathfinder {
   }
 
   pathTo(position, cb = null) {
-    let {pl, numBlocksExamined} = this.aStar(bot.entity.position.floor(), position)
+    let {pl, numBlocksExamined} = this.aStar(this.botVar.entity.position.floor(), position)
     let reducedVecList = this.reducePath(pl)
     let reducedPath = [this.botVar.entity.position.floored().offset(.5, 0, .5)]
     for (let node of reducedVecList) {
@@ -430,7 +399,7 @@ class Pathfinder {
       console.log(node)
     }
     this.moveTo(reducedPath.shift())
-    bot.on("finishedMove", () => {
+    this.botVar.on("finishedMove" + this.botVar.username, () => {
       if (reducedPath.length > 0) {
         this.moveTo(reducedPath.shift())
       }
@@ -447,7 +416,7 @@ class Pathfinder {
     this.FAIL_DISTANCE = position.distanceTo(startPos) + 2
 
     this.botVar.lookAt(lookAtVal, true, () => {
-      console.log("Finished looking at")
+      //console.log("Finished looking at")
       this.botVar.setControlState("forward", true)
       if (this.botDest.minus(startPos).y > .5) {
         this.botVar.setControlState("jump", true)
@@ -458,15 +427,23 @@ class Pathfinder {
       if (this.MOVING) {
         let dist = this.botVar.entity.position.distanceTo(this.botDest)
         console.log(`Distance = ${dist}`)
+        console.log("Velocity = " + this.botVar.entity.velocity)
         if (dist < 0.71) {
-          bot.setControlState("jump", false)
+          this.botVar.setControlState("jump", false)
         }
         if (dist < this.SUCCESS_DISTANCE) {
-          this.MOVING = false
+          //this.MOVING = false
           this.botVar.clearControlStates()
-          this.botDest = null;
+          //this.botDest = null
           console.log("finished moving")
-          this.botVar.emit("finishedMove")
+          //this.botVar.emit("finishedMove" + this.botVar.username)
+          //console.log(this.botVar.entity.velocity)
+          if (Math.abs(this.botVar.entity.velocity.x) <= .01 && Math.abs(this.botVar.entity.velocity.z) <= .01) {
+            this.botDest = null
+            this.MOVING = false
+            console.log("no momentum")
+            this.botVar.emit("finishedMove" + this.botVar.username)
+          }
         } else if (dist > this.FAIL_DISTANCE) {
           this.MOVING = false
           this.botVar.clearControlStates()
@@ -484,10 +461,10 @@ class Pathfinder {
     for (let i = 1; i < listOfNodes.length; i++) {
       deltaVecs.push(listOfNodes[i].position.minus(listOfNodes[i-1].position))
     }
-    console.log("deltaVecs before compression: ")
-    for (let node of deltaVecs) {
-      console.log(node)
-    }
+    //console.log("deltaVecs before compression: ")
+    // for (let node of deltaVecs) {
+    //   console.log(node)
+    // }
     for (let i = 0; i < deltaVecs.length; i++) {
       let tv = deltaVecs[i]
       let count = 1
@@ -502,10 +479,10 @@ class Pathfinder {
       }
       deltaVecs[i].scale(count)
     }
-    console.log("deltaVecs after compression : ")
-    for (let node of deltaVecs) {
-      console.log(node)
-    }
+    // console.log("deltaVecs after compression : ")
+    // for (let node of deltaVecs) {
+    //   console.log(node)
+    // }
     return deltaVecs
   }
 
@@ -530,12 +507,13 @@ class Pathfinder {
     let openList = []
     let closedList = []
     let md = startpoint.manhattanDistanceTo(endpoint)
+    let timeoutBlocks = Math.max(300, md * 20)
 
     openList.push(new AStarNode(startpoint, 0, md))
 
     let pathfound = false
 
-    while(true && openList.length + closedList.length <= md * 10) {
+    while(true && openList.length + closedList.length <= timeoutBlocks) {
       let current = null;
       let currentIndex = 0;
       if(openList.length > 1) {
