@@ -1,3 +1,4 @@
+let underscore = require("underscore")
 let mineflayer = require('mineflayer')
 let vec3 = require("vec3")
 const { instruments, blocks } = require('minecraft-data')("1.15.2")
@@ -95,11 +96,32 @@ bot.on('chat', (username, message) => {
   const mcData = require('minecraft-data')(bot.version)
 
   if(message.startsWith("test")) {
-    console.log(bot.entity.position)
-    bot.setControlState("jump", true)
-    setTimeout(() => {
-      bot.setControlState("jump", false)
-    }, 3000)
+    // console.log(bot.entity.position)
+    // bot.setControlState("jump", true)
+    // setTimeout(() => {
+    //   bot.setControlState("jump", false)
+    // }, 3000)
+
+    let pf = new Pathfinder(bot)
+    let {nearestTree, moveToPoint, treeBase} = pf.findClosestWood()
+    if (nearestTree) {
+      pf.breakReachableTree(nearestTree, moveToPoint, treeBase)
+    } else {
+      console.log("oops no tree")
+    }
+  }
+
+  if (message.startsWith("vel")) {
+    let a = bot.eventNames()
+    let c = []
+    for (let b of a) {
+      c.push({eventName: b, eventCount: bot.listenerCount(b)})
+    }
+
+    for (let b of c) {
+      console.log(b)
+    }
+    console.log(bot.entity.velocity)
   }
 
   // if (message.startsWith("center")) {
@@ -201,7 +223,7 @@ bot.on('chat', (username, message) => {
   }
 })
 
-bot.on("move", () => {
+//bot.on("move", () => {
   //console.log(bot.entity.position)
   // if(botDest) {
   //   console.log(distanceFrom(bot.entity.position, botDest))
@@ -211,7 +233,7 @@ bot.on("move", () => {
   //     console.log(bot.entity.position)
   //   }
   // }
-})
+//})
 
 bot.on("spawn", function() {
   //botDest = bot.entity.position;
@@ -313,11 +335,263 @@ function canMove(botVar, direction) {
 class Pathfinder {
   
   constructor(botVar) {
-    this.botVar = botVar;
+    this.SUBOBJECTIVE = null
+    this.OBJECTIVE = null
+    this.botVar = botVar
     this.botDest = null
     this.MOVING = false
     this.SUCCESS_DISTANCE = 0.3
-    this.FAIL_DISTANCE = 0;
+    this.FAIL_DISTANCE = 0
+  }
+
+  findClosestWood() {
+    const mcData = require('minecraft-data')(bot.version)
+    const logblocks = mcData.blocksArray.filter((block) => {
+      return block.name.includes("log") && !block.name.includes("stripped")
+    })
+
+    const ids = logblocks.map((block) => {
+      return block.id
+    })
+
+    let starttime = Date.now()
+    let blocks = this.botVar.findBlocks({ matching: ids, maxDistance: 32, minCount: 10 })
+    //console.log(blocks)
+    let finaltime = Date.now() - starttime
+
+    this.botVar.chat(`I found ${blocks.length} blocks in ${finaltime} ms`)
+
+    let trees = []
+    if (blocks.length > 1) {
+      for (let block of blocks) {
+        // console.log(block)
+        // console.log(trees)
+        if (trees.length < 1) {
+          trees.push({pos: [block]})
+        } else {
+          let treeFlag = false;
+          for (let tree of trees) {
+            for (let position of tree.pos) {
+              if (Math.round(block.xzDistanceTo(position)) <= 1) {
+                tree.pos.push(block)
+                treeFlag = true
+                break
+              }
+            }
+            if (treeFlag) {
+              break
+            }
+          }
+          if (!treeFlag) {
+            trees.push({pos: [block]})
+          }
+        }
+      }
+    }
+
+    let bases = []
+    //console.log("num trees " + trees.length)
+    //console.log(trees)
+    for (let tree of trees) {
+      //console.log(tree)
+      let yVals = tree.pos.map((block) => {
+        return block.y
+      })
+      //console.log(yVals)
+      let minpos = Math.min(...yVals)
+      //console.log(minpos)
+      for (let position of tree.pos) {
+        if (position.y === minpos) {
+          bases.push(position)
+        }
+      }
+    }
+    // console.log(bases)
+    // for (let base of bases) {
+    //   console.log(this.botVar.entity.position.manhattanDistanceTo(base))
+    // }
+    bases.sort((a,b) => {
+      return this.botVar.entity.position.manhattanDistanceTo(a) - this.botVar.entity.position.manhattanDistanceTo(b)
+    })
+    //console.log(bases)
+    let baseAroundTree = []
+    let currentBase
+    for (let base of bases) {
+      currentBase = base
+      //console.log(this.botVar.entity.position.manhattanDistanceTo(base))
+      let dirs = ["north", "east", "south", "west"]
+      for (let dir of dirs) {
+        let {moveAble, coords} = this.canMoveByTreeBase(base, dir)
+        if (moveAble) {
+          baseAroundTree.push(coords)
+        }
+      }
+      if (baseAroundTree.length > 0) {
+        baseAroundTree.sort((a,b) => {
+          return this.botVar.entity.position.manhattanDistanceTo(a) - this.botVar.entity.position.manhattanDistanceTo(b)
+        })
+        while (baseAroundTree.length > 0) {
+          let {pl, numBlocksExamined} = this.aStar(this.botVar.entity.position, baseAroundTree[0])
+          if (pl.length > 0) {
+            break
+          } else {
+            baseAroundTree.shift()
+          }
+        }
+        if (baseAroundTree.length > 0) {
+          break
+        }
+      }
+      //console.log("base " + base + " has no viable standing points near it")
+    }
+    //console.log(baseAroundTree)
+    //console.log("current base" + currentBase)
+    if(baseAroundTree.length > 0) {
+      let treeToBreak = null
+      for (let tree of trees) {
+        //console.log("current tree " + tree)
+        //console.log(tree.pos)
+        let treeFound = false
+        for (let position of tree.pos) {
+          //console.log(position)
+          if (position.equals(currentBase)) {
+            //console.log(" tree      " + tree)
+            treeToBreak = tree
+          }
+        }
+        if (treeFound) {
+          break
+        }
+      }
+      //console.log(baseAroundTree)
+      return {nearestTree: treeToBreak, moveToPoint: baseAroundTree[0], treeBase: currentBase}
+    } else {
+      this.botVar.chat("No valid trees.")
+      return false
+    }
+  }
+
+  breakReachableTree(tree, moveToPoint, treeBase) {
+    console.log("found tree to break")
+    console.log(tree)
+    console.log(treeBase)
+    this.pathTo(moveToPoint)
+    //this.botVar.lookAt(treeBase)
+    this.botVar.on("finishedPathing" + this.botVar.username, () => {
+      console.log("finishpath")
+      this.botVar.removeAllListeners("finishedPathing" + this.botVar.username)
+      this.botVar.dig(this.botVar.blockAt(treeBase), () => {
+        this.removeBlockFromTree(tree, treeBase)
+        //console.log(this.botVar.blockAt(treeBase))
+        if (this.botVar.blockAt(treeBase.offset(0,1,0)).diggable && this.botVar.blockAt(treeBase.offset(0,1,0)).boundingBox !== "empty") {
+          // console.log(this.botVar.blockAt(treeBase.offset(0,-1,0)))
+          this.botVar.dig(this.botVar.blockAt(treeBase.offset(0,1,0)), () => {
+            this.removeBlockFromTree(tree, treeBase.offset(0,1,0))
+            if (this.botVar.blockAt(treeBase.offset(0,-1,0)).boundingBox === "block") {
+              this.moveTo(treeBase.offset(.5, 0, .5))
+              this.botVar.on("finishedMove" + this.botVar.username, () => {
+                this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
+                tree.pos.sort((a, b) => {
+                  return this.botVar.entity.position.distanceTo(a) - this.botVar.entity.position.distanceTo(b)
+                })
+                tree.pos = tree.pos.filter((point) => {
+                  return this.botVar.entity.position.offset(0, this.botVar.entity.height ,0).distanceTo(point) <= 5
+                })
+                this.botVar.on("finishedDigging" + this.botVar.username, () => {
+                  if (tree.pos.length > 0) {
+                    this.botVar.dig(this.botVar.blockAt(tree.pos.shift()), () => {
+                      if(!tree.pos.length) {
+                        console.log("finish digging")
+                        this.botVar.removeAllListeners("finishedDigging" + this.botVar.username)
+                        // console.log(this.botVar.listeners("finishedPathing" + this.botVar.username))
+                        // this.botVar.removeListener(this.botVar.listeners("finishedPathing" + this.botVar.username))
+                        // console.log(this.botVar.listeners("finishedPathing" + this.botVar.username))
+                      }
+                      this.botVar.emit("finishedDigging" + this.botVar.username)
+                    })
+                  }
+                })
+                if (tree.pos.length > 0) {
+                  this.botVar.dig(this.botVar.blockAt(tree.pos.shift()), () => {
+                    if(!tree.pos.length) {
+                      console.log("finish digging")
+                      this.botVar.removeAllListeners("finishedDigging" + this.botVar.username)
+                    }
+                    this.botVar.emit("finishedDigging" + this.botVar.username)
+                  })
+                }
+              })
+            }
+          })
+        }
+      })
+    })
+  }
+
+  removeBlockFromTree(tree, position) {
+    for (let i = 0; i < tree.pos.length; i++) {
+      if (tree.pos[i].equals(position)) {
+        tree.pos.splice(i, 1)
+        return true
+      }
+    }
+    return false
+  }
+
+  canMoveByTreeBase(point, direction) {
+    let block0, block1, block2, block3 = null;
+    switch(direction) {
+      case "north":
+        //offset to the north  = (0, y, -1)
+        block0 = this.botVar.blockAt(point.offset(0,-2,-1))
+        block1 = this.botVar.blockAt(point.offset(0,-1,-1))
+        block2 = this.botVar.blockAt(point.offset(0,0,-1))
+        block3 = this.botVar.blockAt(point.offset(0,1,-1))
+        //console.log(this.botVar.blockAt(point.offset(0,-1,-1)))
+        break;
+      case "east":
+        //offset to the east  = (1, y, 0)
+        block0 = this.botVar.blockAt(point.offset(1,-2,0))
+        block1 = this.botVar.blockAt(point.offset(1,-1,0))
+        block2 = this.botVar.blockAt(point.offset(1,0,0))
+        block3 = this.botVar.blockAt(point.offset(1,1,0))
+        //console.log(this.botVar.blockAt(point.offset(1,-1,0)))
+        break;
+      case "south":
+        //offset to the south  = (0, y, 1)
+        block0 = this.botVar.blockAt(point.offset(0,-2,1))
+        block1 = this.botVar.blockAt(point.offset(0,-1,1))
+        block2 = this.botVar.blockAt(point.offset(0,0,1))
+        block3 = this.botVar.blockAt(point.offset(0,1,1))
+        //console.log(this.botVar.blockAt(point.offset(0,-1,1)))
+        break;
+      case "west":
+        //offset to the west  = (-1, y, 0)
+        block0 = this.botVar.blockAt(point.offset(-1,-2,0))
+        block1 = this.botVar.blockAt(point.offset(-1,-1,0))
+        block2 = this.botVar.blockAt(point.offset(-1,0,0))
+        block3 = this.botVar.blockAt(point.offset(-1,1,0))
+        //console.log(this.botVar.blockAt(point.offset(-1,-1,0)))
+        break;
+    }
+    
+    const idsToAvoid = [26,27]
+  
+    if(block1.boundingBox === "block" && block2.boundingBox === "empty" && block3.boundingBox === "empty") {
+      if(idsToAvoid.includes(block2.type) || idsToAvoid.includes(block3.type)) {
+        return {moveAble: false, coords: block2.position}
+      } else {
+        return {moveAble: true, coords: block2.position}
+      }
+    } else if (block0.boundingBox === "block" && block1.boundingBox === "empty" && block2.boundingBox === "empty") {
+      if(idsToAvoid.includes(block1.type) || idsToAvoid.includes(block2.type)) {
+        return {moveAble: false, coords: block1.position}
+      } else {
+        return {moveAble: true, coords: block1.position}
+      }
+    } else {
+      return {moveAble: false, coords: this.botVar.blockAt(point)}
+    }
   }
 
   canMoveDir(point, direction) {
@@ -394,16 +668,23 @@ class Pathfinder {
     for (let node of reducedVecList) {
       reducedPath.push(reducedPath[reducedPath.length - 1].plus(node))
     }
-    console.log("reduced path below")
-    for (let node of reducedPath) {
-      console.log(node)
-    }
+    // console.log("reduced path below")
+    // for (let node of reducedPath) {
+    //   console.log(node)
+    // }
     this.moveTo(reducedPath.shift())
     this.botVar.on("finishedMove" + this.botVar.username, () => {
+      this.botVar.removeListener("move", this.botVar.listeners("move").pop())
       if (reducedPath.length > 0) {
         this.moveTo(reducedPath.shift())
+      } else {
+        this.botVar.emit("finishedPathing" + this.botVar.username)
+        this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
       }
     })
+    // if (cb !== null) {
+    //   cb()
+    // }
   }
 
   moveTo(position, cb = null) {
@@ -426,8 +707,8 @@ class Pathfinder {
     this.botVar.on("move", () => {
       if (this.MOVING) {
         let dist = this.botVar.entity.position.distanceTo(this.botDest)
-        console.log(`Distance = ${dist}`)
-        console.log("Velocity = " + this.botVar.entity.velocity)
+        // console.log(`Distance = ${dist}`)
+        // console.log("Velocity = " + this.botVar.entity.velocity)
         if (dist < 0.71) {
           this.botVar.setControlState("jump", false)
         }
@@ -435,13 +716,13 @@ class Pathfinder {
           //this.MOVING = false
           this.botVar.clearControlStates()
           //this.botDest = null
-          console.log("finished moving")
+          //console.log("finished moving")
           //this.botVar.emit("finishedMove" + this.botVar.username)
           //console.log(this.botVar.entity.velocity)
           if (Math.abs(this.botVar.entity.velocity.x) <= .01 && Math.abs(this.botVar.entity.velocity.z) <= .01) {
             this.botDest = null
             this.MOVING = false
-            console.log("no momentum")
+            //console.log("no momentum")
             this.botVar.emit("finishedMove" + this.botVar.username)
           }
         } else if (dist > this.FAIL_DISTANCE) {

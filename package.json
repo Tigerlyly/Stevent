@@ -20,7 +20,8 @@
   },
   "homepage": "https://github.com/Tigerlyly/Stevent#readme",
   "dependencies": {
-    "mineflayer": "^2.19.0"
+    "mineflayer": "^2.19.0",
+    "underscore": "^1.10.2"
   },
   "devDependencies": {
     "nodemon": "^2.0.4"
