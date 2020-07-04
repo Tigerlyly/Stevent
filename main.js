@@ -121,7 +121,35 @@ bot.on('chat', (username, message) => {
     for (let b of c) {
       console.log(b)
     }
-    console.log(bot.entity.velocity)
+    const logitems = mcData.itemsArray.filter((item) => {
+      return item.name.includes("log") && !item.name.includes("stripped")
+    })
+
+    const ids = logitems.map((item) => {
+      return item.id
+    })
+    console.log(ids)
+    // for (let entity in bot.entities) {
+    //   //console.log(bot.entities[entity].metadata)
+    //   if (bot.entities[entity].metadata[7]) {
+    //     console.log(bot.entities[entity].metadata[7].itemId)
+    //     if (ids.includes(bot.entities[entity].metadata[7].itemId))
+    //     {
+    //       console.log(bot.entities[entity])
+    //     }
+    //   }
+    // }
+    for (let entity of Object.values(bot.entities)) {
+      if (entity.metadata[7]) {
+        if (ids.includes(entity.metadata[7].itemId)) {
+          if(bot.entity.position.distanceTo(entity.position) <= 5) {
+            console.log(entity)
+          }
+        }
+      }
+    }
+    let pf = new Pathfinder(bot)
+    pf.collectDroppedWood()
   }
 
   // if (message.startsWith("center")) {
@@ -165,7 +193,7 @@ bot.on('chat', (username, message) => {
   }
 
   if (message === "here") {
-    console.log(bot.entity.height)
+    //console.log(bot.entity.height)
     let pf = new Pathfinder(bot)
     pf.moveTo(bot.players[username].entity.position.floored().offset(0.5, 0, 0.5))
   }
@@ -362,7 +390,7 @@ class Pathfinder {
     this.botVar.chat(`I found ${blocks.length} blocks in ${finaltime} ms`)
 
     let trees = []
-    if (blocks.length > 1) {
+    if (blocks.length > 0) {
       for (let block of blocks) {
         // console.log(block)
         // console.log(trees)
@@ -477,9 +505,9 @@ class Pathfinder {
     console.log(treeBase)
     this.pathTo(moveToPoint)
     //this.botVar.lookAt(treeBase)
-    this.botVar.on("finishedPathing" + this.botVar.username, () => {
+    this.botVar.once("finishedPathing" + this.botVar.username, () => {
       console.log("finishpath")
-      this.botVar.removeAllListeners("finishedPathing" + this.botVar.username)
+      //this.botVar.removeAllListeners("finishedPathing" + this.botVar.username)
       this.botVar.dig(this.botVar.blockAt(treeBase), () => {
         this.removeBlockFromTree(tree, treeBase)
         //console.log(this.botVar.blockAt(treeBase))
@@ -487,10 +515,10 @@ class Pathfinder {
           // console.log(this.botVar.blockAt(treeBase.offset(0,-1,0)))
           this.botVar.dig(this.botVar.blockAt(treeBase.offset(0,1,0)), () => {
             this.removeBlockFromTree(tree, treeBase.offset(0,1,0))
-            if (this.botVar.blockAt(treeBase.offset(0,-1,0)).boundingBox === "block") {
+            if (this.botVar.blockAt(treeBase.offset(0,-1,0)).boundingBox === "block" && tree.pos.length > 0) {
               this.moveTo(treeBase.offset(.5, 0, .5))
-              this.botVar.on("finishedMove" + this.botVar.username, () => {
-                this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
+              this.botVar.once("finishedMove" + this.botVar.username, () => {
+                //this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
                 tree.pos.sort((a, b) => {
                   return this.botVar.entity.position.distanceTo(a) - this.botVar.entity.position.distanceTo(b)
                 })
@@ -521,11 +549,90 @@ class Pathfinder {
                   })
                 }
               })
+            } else {
+              console.log("finish digging")
             }
           })
+        } else {
+          console.log("finish digging")
         }
       })
     })
+  }
+
+  collectDroppedWood() {
+    const mcData = require('minecraft-data')(bot.version)
+    const logitems = mcData.itemsArray.filter((item) => {
+      return item.name.includes("log") && !item.name.includes("stripped")
+    })
+
+    const ids = logitems.map((item) => {
+      return item.id
+    })
+
+    let nearbyWoodDrops = []
+
+    for (let entity of Object.values(bot.entities)) {
+      if (entity.metadata[7]) {
+        if (ids.includes(entity.metadata[7].itemId)) {
+          if(this.botVar.entity.position.distanceTo(entity.position) <= 10) {
+            nearbyWoodDrops.push(entity) 
+          }
+        }
+      }
+    }
+
+    nearbyWoodDrops.sort((a,b) => {
+      return this.botVar.entity.position.manhattanDistanceTo(a.position) - this.botVar.entity.position.manhattanDistanceTo(b.position)
+    })
+
+    if (nearbyWoodDrops.length) {
+      this.pathTo(nearbyWoodDrops.shift().position.floored())
+    } else {
+      console.log("no wood")
+    }
+    this.botVar.on("finishedPathing" + this.botVar.username, () => {
+      //console.log(nearbyWoodDrops.length)
+      if (nearbyWoodDrops.length) {
+        nearbyWoodDrops.sort((a,b) => {
+          return this.botVar.entity.position.manhattanDistanceTo(a.position) - this.botVar.entity.position.manhattanDistanceTo(b.position)
+        })
+        //console.log(nearbyWoodDrops[0].position)
+        setTimeout(() => {
+          this.pathTo(nearbyWoodDrops.shift().position.floored())
+        }, 0)
+      } else {
+        this.botVar.removeListener("finishedPathing" + this.botVar.username, this.botVar.listeners("finishedPathing" + this.botVar.username).pop())
+        console.log("finished collecting wood")
+      }
+    })
+
+    // this.botVar.on("collectedWood", () => {
+    //   console.log("colwood")
+    //   console.log(nearbyWoodDrops.length)
+    //   if (nearbyWoodDrops.length) {
+    //     console.log(nearbyWoodDrops[0].position.floored())
+    //     let {pl, numBlocksExamined} = this.aStar(this.botVar.entity.position.floored(), nearbyWoodDrops[0].position.floored())
+    //     console.log(pl.length)
+    //     //console.log(nearbyWoodDrops)
+    //     if (pl.length) {
+    //       this.pathTo(nearbyWoodDrops.shift().position.floored())
+    //       console.log(this.botVar.listeners("finishedMove"), this.botVar.listeners("finishedPathing"))
+    //       this.botVar.once("finishedPathing" + this.botVar.username, () => {
+    //         this.botVar.emit("collectedWood")
+    //       })
+    //     } else {
+    //       nearbyWoodDrops.shift()
+    //       this.botVar.emit("collectedWood")
+    //     }
+    //   } else {
+    //     if (this.botVar.listeners("collectedWood").length) {
+    //       this.botVar.removeListener("collectedWood", this.botVar.listeners("collectedWood").pop())
+    //     } 
+    //     console.log("finished collecting wood")
+    //   }
+    // })
+    // this.botVar.emit("collectedWood")
   }
 
   removeBlockFromTree(tree, position) {
@@ -674,11 +781,14 @@ class Pathfinder {
     // }
     this.moveTo(reducedPath.shift())
     this.botVar.on("finishedMove" + this.botVar.username, () => {
-      this.botVar.removeListener("move", this.botVar.listeners("move").pop())
-      if (reducedPath.length > 0) {
+      if (this.botVar.listeners("move").length) {
+        this.botVar.removeListener("move", this.botVar.listeners("move").pop())
+      }
+      if (reducedPath.length) {
         this.moveTo(reducedPath.shift())
       } else {
         this.botVar.emit("finishedPathing" + this.botVar.username)
+        //console.log(this.botVar.listeners("finishedMove"))
         this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
       }
     })
