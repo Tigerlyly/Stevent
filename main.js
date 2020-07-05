@@ -598,9 +598,10 @@ class Pathfinder {
           return this.botVar.entity.position.manhattanDistanceTo(a.position) - this.botVar.entity.position.manhattanDistanceTo(b.position)
         })
         //console.log(nearbyWoodDrops[0].position)
-        setTimeout(() => {
-          this.pathTo(nearbyWoodDrops.shift().position.floored())
-        }, 0)
+        // setTimeout(() => {
+        //   this.pathTo(nearbyWoodDrops.shift().position.floored())
+        // }, 0)
+        this.pathTo(nearbyWoodDrops.shift().position.floored())
       } else {
         this.botVar.removeListener("finishedPathing" + this.botVar.username, this.botVar.listeners("finishedPathing" + this.botVar.username).pop())
         console.log("finished collecting wood")
@@ -769,7 +770,7 @@ class Pathfinder {
   }
 
   pathTo(position, cb = null) {
-    let {pl, numBlocksExamined} = this.aStar(this.botVar.entity.position.floor(), position)
+    let {pl, numBlocksExamined} = this.aStar(this.botVar.entity.position.floored(), position)
     let reducedVecList = this.reducePath(pl)
     let reducedPath = [this.botVar.entity.position.floored().offset(.5, 0, .5)]
     for (let node of reducedVecList) {
@@ -779,19 +780,26 @@ class Pathfinder {
     // for (let node of reducedPath) {
     //   console.log(node)
     // }
-    this.moveTo(reducedPath.shift())
-    this.botVar.on("finishedMove" + this.botVar.username, () => {
-      if (this.botVar.listeners("move").length) {
-        this.botVar.removeListener("move", this.botVar.listeners("move").pop())
-      }
-      if (reducedPath.length) {
-        this.moveTo(reducedPath.shift())
-      } else {
-        this.botVar.emit("finishedPathing" + this.botVar.username)
-        //console.log(this.botVar.listeners("finishedMove"))
-        this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
-      }
-    })
+    if (reducedPath[0].distanceTo(this.botVar.entity.position) <= 0.3) {
+      reducedPath.shift()
+    }
+    //console.log(this.botVar.entity.position)
+    if (reducedPath.length) {
+      this.moveTo(reducedPath.shift())
+      this.botVar.on("finishedMove" + this.botVar.username, () => {
+        if (this.botVar.listeners("move").length) {
+          this.botVar.removeListener("move", this.botVar.listeners("move").pop())
+        }
+        if (reducedPath.length) {
+          this.moveTo(reducedPath.shift())
+        } else {
+          this.botVar.removeAllListeners("finishedMove" + this.botVar.username)
+          this.botVar.emit("finishedPathing" + this.botVar.username)
+          //console.log(this.botVar.listeners("finishedMove"))
+        }
+      })
+    }
+    
     // if (cb !== null) {
     //   cb()
     // }
